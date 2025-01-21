@@ -1,0 +1,203 @@
+services:
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafka
+    hostname: kafka
+    environment:
+      - KAFKA_ENABLE_KRAFT=yes
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:19092
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:19092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    ports:
+      - "9092:9092"
+      - "19092:19092"
+    networks:
+      - messenger_net
+
+  redis:
+    image: redis:7.0.11
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - messenger_net
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=root
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - messenger_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: elasticsearch:8.6.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - messenger_net
+
+  kibana:
+    image: kibana:8.6.1
+    container_name: kibana
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+    networks:
+      - messenger_net
+
+  postfix:
+    image: namshi/smtp:latest
+    container_name: postfix
+    ports:
+      - "25:25"
+    networks:
+      - messenger_net
+
+  prometheus:
+    build: ../monitoring-service/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - messenger_net
+
+  grafana:
+    image: grafana/grafana:9.4.7
+    container_name: grafana
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    networks:
+      - messenger_net
+
+  caching-service:
+    build: ../caching-service
+    container_name: caching-service
+    depends_on:
+      - redis
+    environment:
+      - CACHE_SERVICE_PORT=8084
+      - REDIS_ADDR=redis:6379
+    ports:
+      - "8084:8084"
+    networks:
+      - messenger_net
+
+  auth-service:
+    build: ../auth-service
+    container_name: auth-service
+    depends_on:
+      - kafka
+      - user-service
+    environment:
+      - AUTH_SERVICE_PORT=8081
+      - AUTH_JWT_SECRET=secret
+      - USER_SERVICE_URL=http://user-service:8082
+    ports:
+      - "8081:8081"
+    networks:
+      - messenger_net
+
+  user-service:
+    build: ../user-service
+    container_name: user-service
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      - USER_SERVICE_PORT=8082
+      - USER_DB_URL=postgres://root:root@postgres:5432/root?sslmode=disable
+    ports:
+      - "8082:8082"
+    networks:
+      - messenger_net
+
+  message-service:
+    build: ../message-service
+    container_name: message-service
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      - MESSAGE_SERVICE_PORT=8083
+      - MESSAGE_DB_URL=postgres://root:root@postgres:5432/root?sslmode=disable
+    ports:
+      - "8083:8083"
+    networks:
+      - messenger_net
+
+  notification-service:
+    build: ../notification-service
+    container_name: notification-service
+    depends_on:
+      - kafka
+      - postfix
+    environment:
+      - NOTIF_KAFKA_BROKER=kafka:9092
+      - NOTIF_SMTP_HOST=postfix:25
+    ports:
+      - "8085:8085"
+    networks:
+      - messenger_net
+
+  logging-service:
+    build: ../logging-service
+    container_name: logging-service
+    depends_on:
+      - kafka
+      - elasticsearch
+    environment:
+      - LOG_KAFKA_BROKER=kafka:9092
+      - LOG_ES_ADDR=http://elasticsearch:9200
+      - LOG_ES_INDEX=logs
+    networks:
+      - messenger_net
+
+  db-migrations:
+    image: migrate/migrate
+    container_name: db-migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../migrations:/migrations
+    entrypoint: >
+      /bin/sh -c "
+      while ! nc -z postgres 5432; do sleep 2; done;
+      migrate -source file:///migrations -database=postgres://root:root@postgres:5432/root?sslmode=disable up"
+    networks:
+      - messenger_net
+
+volumes:
+  postgres_data:
+  es_data:
+
+networks:
+  messenger_net:
+    driver: bridge
