@@ -20,6 +20,27 @@ services:
     networks:
       - messenger_net
 
+  api-gateway:
+    build: ../api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - GATEWAY_PORT=8080
+      - GATEWAY_JWT_SECRET=super_secret_key
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - USER_SERVICE_URL=http://user-service:8082
+      - MESSAGE_SERVICE_URL=http://message-service:8083
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8085
+      - CACHING_SERVICE_URL=http://caching-service:8084
+    depends_on:
+      - auth-service
+      - user-service
+      - message-service
+      - notification-service
+    networks:
+      - messenger_net
+
   redis:
     image: redis:7.0.11
     container_name: redis
@@ -52,6 +73,7 @@ services:
     container_name: elasticsearch
     environment:
       - discovery.type=single-node
+      - xpack.security.enabled=false
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -127,6 +149,7 @@ services:
   user-service:
     build: ../user-service
     container_name: user-service
+    restart: always
     depends_on:
       - postgres
       - kafka
@@ -141,6 +164,7 @@ services:
   message-service:
     build: ../message-service
     container_name: message-service
+    restart: always
     depends_on:
       - postgres
       - kafka
