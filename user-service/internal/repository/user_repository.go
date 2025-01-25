@@ -9,6 +9,8 @@ type User struct {
 	Username     string
 	PasswordHash string
 	Role         string
+	Email        string
+	Nickname     string
 }
 
 type UserRepository struct {
@@ -20,16 +22,23 @@ func NewUserRepository(d *sql.DB) *UserRepository {
 }
 
 func (r *UserRepository) Create(u User) (int, error) {
-	q := `INSERT INTO users (username, password_hash, role) 
-	      VALUES ($1, $2, $3) RETURNING id`
+	q := `INSERT INTO users (username, password_hash, role, email, nickname) 
+	      VALUES ($1, $2, $3, $4, $5) RETURNING id`
 	var id int
-	err := r.db.QueryRow(q, u.Username, u.PasswordHash, u.Role).Scan(&id)
+	err := r.db.QueryRow(q, u.Username, u.PasswordHash, u.Role, u.Email, u.Nickname).Scan(&id)
 	return id, err
 }
 
 func (r *UserRepository) GetByUsername(name string) (User, error) {
-	var us User
-	q := `SELECT id, username, password_hash, role FROM users WHERE username = $1`
-	err := r.db.QueryRow(q, name).Scan(&us.ID, &us.Username, &us.PasswordHash, &us.Role)
-	return us, err
+	var u User
+	q := `SELECT id, username, password_hash, role, email, nickname FROM users WHERE username = $1`
+	err := r.db.QueryRow(q, name).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.Email, &u.Nickname)
+	return u, err
+}
+
+func (r *UserRepository) GetByNickname(nickname string) (User, error) {
+	var u User
+	q := `SELECT id, username, role, email, nickname FROM users WHERE nickname = $1`
+	err := r.db.QueryRow(q, nickname).Scan(&u.ID, &u.Username, &u.Role, &u.Email, &u.Nickname)
+	return u, err
 }

@@ -36,6 +36,7 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/users", hnd.CreateUserHandler).Methods("POST")
 	r.HandleFunc("/users/checkpassword", hnd.CheckPasswordHandler).Methods("POST")
+	r.HandleFunc("/users/{nickname}", hnd.GetUserByNicknameHandler).Methods("GET")
 
 	srvHTTP := &http.Server{
 		Addr:    ":" + port,

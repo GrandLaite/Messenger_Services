@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"user-service/internal/service"
+
+	"github.com/gorilla/mux"
 )
 
 type UserHandlers struct {
@@ -19,13 +21,15 @@ func (h *UserHandlers) CreateUserHandler(w http.ResponseWriter, r *http.Request)
 		Username string `json:"username"`
 		Password string `json:"password"`
 		Role     string `json:"role"`
+		Email    string `json:"email"`
+		Nickname string `json:"nickname"`
 	}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, "", http.StatusBadRequest)
 		return
 	}
-	id, err := h.srv.CreateUser(req.Username, req.Password, req.Role)
+	id, err := h.srv.CreateUser(req.Username, req.Password, req.Role, req.Email, req.Nickname)
 	if err != nil {
 		http.Error(w, "", http.StatusInternalServerError)
 		return
@@ -53,5 +57,18 @@ func (h *UserHandlers) CheckPasswordHandler(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(map[string]string{
 		"username": u.Username,
 		"role":     u.Role,
+		"email":    u.Email,
+		"nickname": u.Nickname,
 	})
+}
+
+func (h *UserHandlers) GetUserByNicknameHandler(w http.ResponseWriter, r *http.Request) {
+	nickname := mux.Vars(r)["nickname"]
+	u, err := h.srv.GetUserByNickname(nickname)
+	if err != nil {
+		http.Error(w, "", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(u)
 }
