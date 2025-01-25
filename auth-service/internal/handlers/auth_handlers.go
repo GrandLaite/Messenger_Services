@@ -25,12 +25,12 @@ func (h *AuthHandlers) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err := json.NewDecoder(r.Body).Decode(&c)
 	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
+		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 	token, err := h.srv.LoginUser(c.Username, c.Password)
 	if err != nil {
-		http.Error(w, "", http.StatusUnauthorized)
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -45,7 +45,7 @@ func (h *AuthHandlers) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err := json.NewDecoder(r.Body).Decode(&reqData)
 	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
+		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 	url := os.Getenv("USER_SERVICE_URL")
@@ -56,14 +56,14 @@ func (h *AuthHandlers) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	u := url + "/users"
 	rq, err := http.NewRequest("POST", u, bytes.NewBuffer(buf))
 	if err != nil {
-		http.Error(w, "", http.StatusInternalServerError)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 	rq.Header.Set("Content-Type", "application/json")
 	cl := &http.Client{}
 	resp, err := cl.Do(rq)
 	if err != nil {
-		http.Error(w, "", http.StatusInternalServerError)
+		http.Error(w, "Failed to connect to user service", http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
@@ -72,12 +72,7 @@ func (h *AuthHandlers) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, string(body), resp.StatusCode)
 		return
 	}
-	token, err := h.srv.GenerateToken(reqData.Username, reqData.Role)
-	if err != nil {
-		http.Error(w, "", http.StatusInternalServerError)
-		return
-	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "ok", "token": token})
+	json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully"})
 }
