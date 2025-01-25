@@ -25,7 +25,7 @@ func ProxyHandler(envVar string) http.HandlerFunc {
 
 		outReq, err := http.NewRequest(r.Method, fullURL, r.Body)
 		if err != nil {
-			http.Error(w, "", http.StatusBadRequest)
+			http.Error(w, "Bad request", http.StatusBadRequest)
 			return
 		}
 		outReq.Header = r.Header.Clone()
@@ -33,7 +33,7 @@ func ProxyHandler(envVar string) http.HandlerFunc {
 		client := &http.Client{}
 		resp, err := client.Do(outReq)
 		if err != nil {
-			http.Error(w, "", http.StatusBadGateway)
+			http.Error(w, "Failed to forward request", http.StatusBadGateway)
 			return
 		}
 		defer resp.Body.Close()
