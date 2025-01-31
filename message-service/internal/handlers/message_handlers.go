@@ -20,24 +20,16 @@ func NewMessageHandlers(s *service.MessageService) *MessageHandlers {
 }
 
 func (h *MessageHandlers) CreateMessageHandler(w http.ResponseWriter, r *http.Request) {
-	sid := r.FormValue("sender_id")
-	rid := r.FormValue("recipient_id")
-	c := r.FormValue("content")
-	senderID, err := strconv.Atoi(sid)
+	senderID, _ := strconv.Atoi(r.FormValue("sender_id"))
+	recipientID, _ := strconv.Atoi(r.FormValue("recipient_id"))
+	content := r.FormValue("content")
+
+	msg, err := h.srv.Create(senderID, recipientID, content)
 	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
+		http.Error(w, "Failed to create message", http.StatusInternalServerError)
 		return
 	}
-	recipientID, err := strconv.Atoi(rid)
-	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
-		return
-	}
-	msg, err := h.srv.Create(senderID, recipientID, c)
-	if err != nil {
-		http.Error(w, "", http.StatusInternalServerError)
-		return
-	}
+
 	file, header, _ := r.FormFile("attachment")
 	if file != nil && header != nil {
 		defer file.Close()
@@ -46,132 +38,128 @@ func (h *MessageHandlers) CreateMessageHandler(w http.ResponseWriter, r *http.Re
 		fType := header.Header.Get("Content-Type")
 		_, _ = h.srv.CreateAttachment(msg.ID, buf, fType, fSize)
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(msg)
 }
 
 func (h *MessageHandlers) ListMessagesHandler(w http.ResponseWriter, r *http.Request) {
-	ms, err := h.srv.ListAll()
+	messages, err := h.srv.ListAll()
 	if err != nil {
-		http.Error(w, "", http.StatusInternalServerError)
+		http.Error(w, "Failed to retrieve messages", http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ms)
+	json.NewEncoder(w).Encode(messages)
 }
 
 func (h *MessageHandlers) GetMessageHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	id, err := strconv.Atoi(idStr)
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+
+	message, err := h.srv.GetByID(id)
 	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
+		http.Error(w, "Message not found", http.StatusNotFound)
 		return
 	}
-	m, err := h.srv.GetByID(id)
-	if err != nil {
-		http.Error(w, "", http.StatusNotFound)
-		return
-	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(m)
+	json.NewEncoder(w).Encode(message)
 }
 
 func (h *MessageHandlers) UpdateMessageHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
-		return
-	}
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	var req struct {
-		UserID  int    `json:"user_id"`
 		Content string `json:"content"`
-		OwnerID int    `json:"owner_id"`
+		UserID  int    `json:"user_id"`
 	}
-	err = json.NewDecoder(r.Body).Decode(&req)
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	err := h.srv.Update(id, req.UserID, req.Content)
 	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
+		http.Error(w, "Forbidden or failed to update message", http.StatusForbidden)
 		return
 	}
-	err = h.srv.Update(id, req.UserID, req.Content, req.OwnerID)
-	if err != nil {
-		http.Error(w, "", http.StatusForbidden)
-		return
-	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
 func (h *MessageHandlers) DeleteMessageHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
-		return
-	}
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	var req struct {
-		UserID  int `json:"user_id"`
-		OwnerID int `json:"owner_id"`
+		UserID int `json:"user_id"`
 	}
-	err = json.NewDecoder(r.Body).Decode(&req)
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	err := h.srv.Delete(id, req.UserID)
 	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
+		http.Error(w, "Forbidden or failed to delete message", http.StatusForbidden)
 		return
 	}
-	err = h.srv.Delete(id, req.UserID, req.OwnerID)
-	if err != nil {
-		http.Error(w, "", http.StatusForbidden)
-		return
-	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
 func (h *MessageHandlers) LikeMessageHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
-		return
-	}
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	var req struct {
 		UserID int `json:"user_id"`
 	}
-	err = json.NewDecoder(r.Body).Decode(&req)
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	err := h.srv.LikeMessage(id, req.UserID)
 	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
+		http.Error(w, "Failed to like message", http.StatusInternalServerError)
 		return
 	}
-	err = h.srv.LikeMessage(id, req.UserID)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *MessageHandlers) UnlikeMessageHandler(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+	var req struct {
+		UserID int `json:"user_id"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	err := h.srv.UnlikeMessage(id, req.UserID)
 	if err != nil {
-		http.Error(w, "", http.StatusInternalServerError)
+		http.Error(w, "Failed to unlike message", http.StatusInternalServerError)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
 func (h *MessageHandlers) SuperlikeMessageHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
-		return
-	}
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	var req struct {
 		UserID int `json:"user_id"`
 	}
-	err = json.NewDecoder(r.Body).Decode(&req)
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	err := h.srv.SuperlikeMessage(id, req.UserID)
 	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
+		http.Error(w, "Failed to superlike message", http.StatusInternalServerError)
 		return
 	}
-	err = h.srv.SuperlikeMessage(id, req.UserID)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *MessageHandlers) UnsuperlikeMessageHandler(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+	var req struct {
+		UserID int `json:"user_id"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	err := h.srv.UnsuperlikeMessage(id, req.UserID)
 	if err != nil {
-		http.Error(w, "", http.StatusInternalServerError)
+		http.Error(w, "Failed to unsuperlike message", http.StatusInternalServerError)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 }

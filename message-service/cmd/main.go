@@ -38,10 +38,12 @@ func main() {
 	r.HandleFunc("/messages", hnd.CreateMessageHandler).Methods("POST")
 	r.HandleFunc("/messages", hnd.ListMessagesHandler).Methods("GET")
 	r.HandleFunc("/messages/{id}", hnd.GetMessageHandler).Methods("GET")
-	r.HandleFunc("/messages/{id}", hnd.UpdateMessageHandler).Methods("PUT")
-	r.HandleFunc("/messages/{id}", hnd.DeleteMessageHandler).Methods("DELETE")
-	r.HandleFunc("/messages/{id}/like", hnd.LikeMessageHandler).Methods("POST")
-	r.HandleFunc("/messages/{id}/superlike", hnd.SuperlikeMessageHandler).Methods("POST")
+	r.HandleFunc("/messages/update/{id}", hnd.UpdateMessageHandler).Methods("PUT")
+	r.HandleFunc("/messages/delete/{id}", hnd.DeleteMessageHandler).Methods("DELETE")
+	r.HandleFunc("/messages/like/{id}", hnd.LikeMessageHandler).Methods("POST")
+	r.HandleFunc("/messages/superlike/{id}", hnd.SuperlikeMessageHandler).Methods("POST")
+	r.HandleFunc("/messages/unlike/{id}", hnd.UnlikeMessageHandler).Methods("DELETE")
+	r.HandleFunc("/messages/unsuperlike/{id}", hnd.UnsuperlikeMessageHandler).Methods("DELETE")
 
 	srv := &http.Server{
 		Addr:    ":" + port,

@@ -79,8 +79,20 @@ func (r *MessageRepository) InsertLike(msgID, userID int) error {
 	return err
 }
 
+func (r *MessageRepository) RemoveLike(msgID, userID int) error {
+	q := `DELETE FROM likes WHERE message_id = $1 AND user_id = $2`
+	_, err := r.db.Exec(q, msgID, userID)
+	return err
+}
+
 func (r *MessageRepository) InsertSuperlike(msgID, userID int) error {
 	q := `INSERT INTO superlikes (message_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+	_, err := r.db.Exec(q, msgID, userID)
+	return err
+}
+
+func (r *MessageRepository) RemoveSuperlike(msgID, userID int) error {
+	q := `DELETE FROM superlikes WHERE message_id = $1 AND user_id = $2`
 	_, err := r.db.Exec(q, msgID, userID)
 	return err
 }

@@ -26,15 +26,23 @@ func (s *MessageService) GetByID(id int) (repository.Message, error) {
 	return s.msgRepo.GetByID(id)
 }
 
-func (s *MessageService) Update(id int, userID int, content string, originalOwner int) error {
-	if userID != originalOwner {
+func (s *MessageService) Update(id, userID int, content string) error {
+	message, err := s.msgRepo.GetByID(id)
+	if err != nil {
+		return err
+	}
+	if message.SenderID != userID {
 		return errors.New("forbidden")
 	}
 	return s.msgRepo.Update(id, content)
 }
 
-func (s *MessageService) Delete(id int, userID int, originalOwner int) error {
-	if userID != originalOwner {
+func (s *MessageService) Delete(id, userID int) error {
+	message, err := s.msgRepo.GetByID(id)
+	if err != nil {
+		return err
+	}
+	if message.SenderID != userID {
 		return errors.New("forbidden")
 	}
 	return s.msgRepo.Delete(id)
@@ -44,8 +52,16 @@ func (s *MessageService) LikeMessage(msgID, userID int) error {
 	return s.msgRepo.InsertLike(msgID, userID)
 }
 
+func (s *MessageService) UnlikeMessage(msgID, userID int) error {
+	return s.msgRepo.RemoveLike(msgID, userID)
+}
+
 func (s *MessageService) SuperlikeMessage(msgID, userID int) error {
 	return s.msgRepo.InsertSuperlike(msgID, userID)
+}
+
+func (s *MessageService) UnsuperlikeMessage(msgID, userID int) error {
+	return s.msgRepo.RemoveSuperlike(msgID, userID)
 }
 
 func (s *MessageService) CreateAttachment(msgID int, data []byte, fType string, fSize int) (repository.Attachment, error) {
