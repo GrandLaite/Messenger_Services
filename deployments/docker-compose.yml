@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   kafka:
     image: bitnami/kafka:latest
@@ -14,38 +16,12 @@ services:
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       - ALLOW_PLAINTEXT_LISTENER=yes
-    ports:
-      - "9092:9092"
-      - "19092:19092"
-    networks:
-      - messenger_net
-
-  api-gateway:
-    build: ../api-gateway
-    container_name: api-gateway
-    ports:
-      - "8080:8080"
-    environment:
-      - GATEWAY_PORT=8080
-      - GATEWAY_JWT_SECRET=super_secret_key
-      - AUTH_SERVICE_URL=http://auth-service:8081
-      - USER_SERVICE_URL=http://user-service:8082
-      - MESSAGE_SERVICE_URL=http://message-service:8083
-      - NOTIFICATION_SERVICE_URL=http://notification-service:8085
-      - CACHING_SERVICE_URL=http://caching-service:8084
-    depends_on:
-      - auth-service
-      - user-service
-      - message-service
-      - notification-service
     networks:
       - messenger_net
 
   redis:
     image: redis:7.0.11
     container_name: redis
-    ports:
-      - "6379:6379"
     networks:
       - messenger_net
 
@@ -56,8 +32,6 @@ services:
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=root
       - POSTGRES_DB=root
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -74,9 +48,6 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-    ports:
-      - "9200:9200"
-      - "9300:9300"
     volumes:
       - es_data:/usr/share/elasticsearch/data
     networks:
@@ -87,16 +58,12 @@ services:
     container_name: kibana
     depends_on:
       - elasticsearch
-    ports:
-      - "5601:5601"
     networks:
       - messenger_net
 
   postfix:
     image: namshi/smtp:latest
     container_name: postfix
-    ports:
-      - "25:25"
     networks:
       - messenger_net
 
@@ -126,10 +93,10 @@ services:
     environment:
       - CACHE_SERVICE_PORT=8084
       - REDIS_ADDR=redis:6379
-    ports:
-      - "8084:8084"
     networks:
       - messenger_net
+    ports:
+      - "8084:8084"
 
   auth-service:
     build: ../auth-service
@@ -141,10 +108,10 @@ services:
       - AUTH_SERVICE_PORT=8081
       - AUTH_JWT_SECRET=secret
       - USER_SERVICE_URL=http://user-service:8082
-    ports:
-      - "8081:8081"
     networks:
       - messenger_net
+    ports:
+      - "8081:8081"
 
   user-service:
     build: ../user-service
@@ -156,10 +123,10 @@ services:
     environment:
       - USER_SERVICE_PORT=8082
       - USER_DB_URL=postgres://root:root@postgres:5432/root?sslmode=disable
-    ports:
-      - "8082:8082"
     networks:
       - messenger_net
+    ports:
+      - "8082:8082"
 
   message-service:
     build: ../message-service
@@ -171,10 +138,10 @@ services:
     environment:
       - MESSAGE_SERVICE_PORT=8083
       - MESSAGE_DB_URL=postgres://root:root@postgres:5432/root?sslmode=disable
-    ports:
-      - "8083:8083"
     networks:
       - messenger_net
+    ports:
+      - "8083:8083"
 
   notification-service:
     build: ../notification-service
@@ -185,10 +152,10 @@ services:
     environment:
       - NOTIF_KAFKA_BROKER=kafka:9092
       - NOTIF_SMTP_HOST=postfix:25
-    ports:
-      - "8085:8085"
     networks:
       - messenger_net
+    ports:
+      - "8085:8085"
 
   logging-service:
     build: ../logging-service
