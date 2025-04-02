@@ -21,9 +21,9 @@ func NewAuthService(sec string) *AuthService {
 	return &AuthService{secret: sec}
 }
 
-func (s *AuthService) GenerateToken(username, role string) (string, error) {
+func (s *AuthService) GenerateToken(nickname, role string) (string, error) {
 	claims := jwt.MapClaims{
-		"username": username,
+		"nickname": nickname,
 		"role":     role,
 		"exp":      time.Now().Add(24 * time.Hour).Unix(),
 	}
@@ -32,42 +32,50 @@ func (s *AuthService) GenerateToken(username, role string) (string, error) {
 }
 
 func (s *AuthService) LoginUser(username, password string) (string, error) {
+	// Адрес user-service
 	url := os.Getenv("USER_SERVICE_URL")
 	if url == "" {
 		url = "http://localhost:8082"
 	}
 	postURL := url + "/users/checkpassword"
+
 	var reqData struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	}
 	reqData.Username = username
 	reqData.Password = password
+
 	buf, _ := json.Marshal(reqData)
 	rq, err := http.NewRequest("POST", postURL, bytes.NewBuffer(buf))
 	if err != nil {
 		return "", err
 	}
 	rq.Header.Set("Content-Type", "application/json")
+
 	cl := &http.Client{}
 	resp, err := cl.Do(rq)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return "", errors.New(string(b))
 	}
+
 	var res struct {
 		Username string `json:"username"`
 		Role     string `json:"role"`
+		Email    string `json:"email"`
+		Nickname string `json:"nickname"`
 	}
-	err = json.NewDecoder(resp.Body).Decode(&res)
-	if err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return "", err
 	}
-	return s.GenerateToken(res.Username, res.Role)
+
+	return s.GenerateToken(res.Nickname, res.Role)
 }
 
 func HashPassword(pw string) (string, error) {

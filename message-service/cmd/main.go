@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"message-service/internal/handlers"
+	"message-service/internal/metrics"
 	"message-service/internal/repository"
 	"message-service/internal/service"
 
@@ -30,20 +31,26 @@ func main() {
 	defer db.Close()
 
 	msgRepo := repository.NewMessageRepository(db)
-	attRepo := repository.NewAttachmentRepository(db)
-	msgSrv := service.NewMessageService(msgRepo, attRepo)
+	msgSrv := service.NewMessageService(msgRepo)
 	hnd := handlers.NewMessageHandlers(msgSrv)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/messages", hnd.CreateMessageHandler).Methods("POST")
-	r.HandleFunc("/messages", hnd.ListMessagesHandler).Methods("GET")
-	r.HandleFunc("/messages/{id}", hnd.GetMessageHandler).Methods("GET")
-	r.HandleFunc("/messages/update/{id}", hnd.UpdateMessageHandler).Methods("PUT")
+	r.Use(metrics.MetricsMiddleware)
+
+	// Эндпоинты для message-service
+	r.HandleFunc("/messages/create", hnd.CreateMessageHandler).Methods("POST")
+	// убрали /messages/list
+	r.HandleFunc("/messages/get/{id}", hnd.GetMessageHandler).Methods("GET")
 	r.HandleFunc("/messages/delete/{id}", hnd.DeleteMessageHandler).Methods("DELETE")
 	r.HandleFunc("/messages/like/{id}", hnd.LikeMessageHandler).Methods("POST")
-	r.HandleFunc("/messages/superlike/{id}", hnd.SuperlikeMessageHandler).Methods("POST")
 	r.HandleFunc("/messages/unlike/{id}", hnd.UnlikeMessageHandler).Methods("DELETE")
+	r.HandleFunc("/messages/superlike/{id}", hnd.SuperlikeMessageHandler).Methods("POST")
 	r.HandleFunc("/messages/unsuperlike/{id}", hnd.UnsuperlikeMessageHandler).Methods("DELETE")
+	r.HandleFunc("/messages/conversation/{partner}", hnd.ConversationHandler).Methods("GET")
+	r.HandleFunc("/messages/dialogs", hnd.DialogsHandler).Methods("GET")
+
+	// Прометеевский эндпоинт
+	r.Handle("/metrics", metrics.PrometheusHandler()).Methods("GET")
 
 	srv := &http.Server{
 		Addr:    ":" + port,

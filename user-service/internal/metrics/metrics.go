@@ -1,0 +1,28 @@
+package metrics
+
+import (
+	"net/http"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
+var userCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Name: "user_service_requests_total",
+	Help: "Total number of requests received by user service",
+}, []string{"path", "method"})
+
+func init() {
+	prometheus.MustRegister(userCounter)
+}
+
+func MetricsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userCounter.WithLabelValues(r.URL.Path, r.Method).Inc()
+		next.ServeHTTP(w, r)
+	})
+}
+
+func PrometheusHandler() http.Handler {
+	return promhttp.Handler()
+}

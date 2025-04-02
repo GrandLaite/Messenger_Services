@@ -7,67 +7,53 @@ import (
 
 type MessageService struct {
 	msgRepo *repository.MessageRepository
-	attRepo *repository.AttachmentRepository
 }
 
-func NewMessageService(m *repository.MessageRepository, a *repository.AttachmentRepository) *MessageService {
-	return &MessageService{msgRepo: m, attRepo: a}
+func NewMessageService(m *repository.MessageRepository) *MessageService {
+	return &MessageService{msgRepo: m}
 }
 
-func (s *MessageService) Create(senderID, recipientID int, content string) (repository.Message, error) {
-	return s.msgRepo.Create(senderID, recipientID, content)
+func (s *MessageService) Create(senderUsername, recipientUsername, content string) (repository.Message, error) {
+	return s.msgRepo.Create(senderUsername, recipientUsername, content)
 }
 
-func (s *MessageService) ListAll() ([]repository.Message, error) {
-	return s.msgRepo.ListAll()
-}
+// УДАЛЕНО: ListAll()
 
 func (s *MessageService) GetByID(id int) (repository.Message, error) {
 	return s.msgRepo.GetByID(id)
 }
 
-func (s *MessageService) Update(id, userID int, content string) error {
+func (s *MessageService) Delete(id int, userUsername string) error {
 	message, err := s.msgRepo.GetByID(id)
 	if err != nil {
 		return err
 	}
-	if message.SenderID != userID {
-		return errors.New("forbidden")
-	}
-	return s.msgRepo.Update(id, content)
-}
-
-func (s *MessageService) Delete(id, userID int) error {
-	message, err := s.msgRepo.GetByID(id)
-	if err != nil {
-		return err
-	}
-	if message.SenderID != userID {
+	if message.SenderUsername != userUsername {
 		return errors.New("forbidden")
 	}
 	return s.msgRepo.Delete(id)
 }
 
-func (s *MessageService) LikeMessage(msgID, userID int) error {
-	return s.msgRepo.InsertLike(msgID, userID)
+func (s *MessageService) LikeMessage(msgID int, userUsername string) error {
+	return s.msgRepo.InsertLike(msgID, userUsername)
 }
 
-func (s *MessageService) UnlikeMessage(msgID, userID int) error {
-	return s.msgRepo.RemoveLike(msgID, userID)
+func (s *MessageService) UnlikeMessage(msgID int, userUsername string) error {
+	return s.msgRepo.RemoveLike(msgID, userUsername)
 }
 
-func (s *MessageService) SuperlikeMessage(msgID, userID int) error {
-	return s.msgRepo.InsertSuperlike(msgID, userID)
+func (s *MessageService) SuperlikeMessage(msgID int, userUsername string) error {
+	return s.msgRepo.InsertSuperlike(msgID, userUsername)
 }
 
-func (s *MessageService) UnsuperlikeMessage(msgID, userID int) error {
-	return s.msgRepo.RemoveSuperlike(msgID, userID)
+func (s *MessageService) UnsuperlikeMessage(msgID int, userUsername string) error {
+	return s.msgRepo.RemoveSuperlike(msgID, userUsername)
 }
 
-func (s *MessageService) CreateAttachment(msgID int, data []byte, fType string, fSize int) (repository.Attachment, error) {
-	return s.attRepo.Create(msgID, data, fType, fSize)
+func (s *MessageService) GetConversation(user1, user2 string) ([]repository.Message, error) {
+	return s.msgRepo.GetConversation(user1, user2)
 }
 
-func (s *MessageService) GetAttachments(msgID int) ([]repository.Attachment, error) {
-	return s.attRepo.GetByMessageID(msgID)
+func (s *MessageService) GetDialogs(username string) ([]string, error) {
+	return s.msgRepo.GetDialogs(username)
 }

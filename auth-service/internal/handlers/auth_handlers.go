@@ -27,17 +27,18 @@ func (h *AuthHandlers) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "", http.StatusBadRequest)
 		return
 	}
+
 	token, err := h.srv.LoginUser(c.Username, c.Password)
 	if err != nil {
 		http.Error(w, "", http.StatusUnauthorized)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
 
 func (h *AuthHandlers) RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	// Добавляем поля email, nickname, чтобы пробросить их в user-service
 	var reqData struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -50,20 +51,19 @@ func (h *AuthHandlers) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Адрес user-service берём из переменных окружения
 	url := os.Getenv("USER_SERVICE_URL")
 	if url == "" {
 		url = "http://localhost:8082"
 	}
-	userSvcURL := url + "/users"
+	userSvcURL := url + "/users/create"
 
-	// Собираем JSON с username, password, role, email, nickname
 	buf, err := json.Marshal(reqData)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Формируем запрос в user-service
 	reqToUserSvc, err := http.NewRequest("POST", userSvcURL, bytes.NewBuffer(buf))
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

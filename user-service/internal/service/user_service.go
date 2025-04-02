@@ -35,8 +35,7 @@ func (s *UserService) CheckPassword(username, password string) (repository.User,
 	if err != nil {
 		return repository.User{}, err
 	}
-	err = bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password))
-	if err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)); err != nil {
 		return repository.User{}, errors.New("invalid password")
 	}
 	return u, nil

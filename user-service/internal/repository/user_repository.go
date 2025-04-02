@@ -22,8 +22,7 @@ func NewUserRepository(d *sql.DB) *UserRepository {
 }
 
 func (r *UserRepository) Create(u User) (int, error) {
-	q := `INSERT INTO users (username, password_hash, role, email, nickname) 
-	      VALUES ($1, $2, $3, $4, $5) RETURNING id`
+	q := `INSERT INTO users (username, password_hash, role, email, nickname) VALUES ($1, $2, $3, $4, $5) RETURNING id`
 	var id int
 	err := r.db.QueryRow(q, u.Username, u.PasswordHash, u.Role, u.Email, u.Nickname).Scan(&id)
 	return id, err
@@ -38,7 +37,7 @@ func (r *UserRepository) GetByUsername(name string) (User, error) {
 
 func (r *UserRepository) GetByNickname(nickname string) (User, error) {
 	var u User
-	q := `SELECT id, username, role, email, nickname FROM users WHERE nickname = $1`
-	err := r.db.QueryRow(q, nickname).Scan(&u.ID, &u.Username, &u.Role, &u.Email, &u.Nickname)
+	q := `SELECT id, username, password_hash, role, email, nickname FROM users WHERE nickname = $1`
+	err := r.db.QueryRow(q, nickname).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.Email, &u.Nickname)
 	return u, err
 }
